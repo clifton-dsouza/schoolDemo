@@ -1,0 +1,21 @@
+name = "schoolos-api"
+main = "index.ts"
+compatibility_date = "2025-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "http://localhost:5173"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "schoolos-db"
+database_id = "00000000-0000-0000-0000-000000000001" # local D1 identity; replace for production
+migrations_dir = "."
+
+# Secrets (never commit): 
+#   local  -> workers/api/.dev.vars   with JWT_SECRET=<long random string>
+#   prod   -> wrangler secret put JWT_SECRET
+#
+# Setup:
+#   npx wrangler d1 create schoolos-db
+#   npx wrangler d1 migrations apply schoolos-db --local
+#   npx wrangler dev

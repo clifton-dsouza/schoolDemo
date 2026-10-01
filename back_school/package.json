@@ -1,0 +1,22 @@
+{
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "db:migrate:local": "wrangler d1 migrations apply schoolos-db --local",
+    "seed:demo": "wrangler d1 migrations apply schoolos-db --local && node scripts/seed-demo-users-fast.mjs",
+    "auth:check": "node scripts/verify-demo-auth.mjs",
+    "seed:admin": "node scripts/seed-platform-owner.mjs",
+    "seed:student": "node scripts/seed-test-student.mjs",
+    "seed:teacher": "node scripts/seed-test-teacher.mjs",
+    "seed:school-admin": "node scripts/seed-test-school-admin.mjs",
+    "password:reset:local": "node scripts/reset-platform-owner-password.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wrangler": "^4.143.0"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  }
+}
