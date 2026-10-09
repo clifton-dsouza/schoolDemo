@@ -3,12 +3,12 @@ main = "index.ts"
 compatibility_date = "2025-01-01"
 
 [vars]
-ALLOWED_ORIGIN = "http://localhost:5173"
+ALLOWED_ORIGIN = "https://schoolos-frontend.schoolos-aloysius.workers.dev"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "schoolos-db"
-database_id = "00000000-0000-0000-0000-000000000001" # local D1 identity; replace for production
+database_id = "1749e921-2ff4-48d3-83b1-9a33a83e8ce3" # local D1 identity; replace for production
 migrations_dir = "."
 
 # Secrets (never commit): 

@@ -32,10 +32,7 @@ export const adminNav: NavGroup[] = [
     { label: 'Student admission', to: '/app/modules/students/admission', icon: UserRound },
     { label: 'Student list', to: '/app/students', icon: Users },
     { label: 'Student profiles', to: '/app/modules/students/profile', icon: ContactRound },
-    { label: 'Search by photo', to: '/app/modules/students/photo-search', icon: Search },
-    { label: 'Behavior records', to: '/app/modules/students/behavior', icon: Activity },
-    { label: 'Student categories', to: '/app/modules/students/categories', icon: ContactRound },
-    { label: 'Student houses', to: '/app/modules/students/houses', icon: Building2 },
+    { label: 'Student religion', to: '/app/modules/students/religion', icon: ShieldCheck },
   ] },
   { label: 'Teachers & Staff', icon: BriefcaseBusiness, items: [
     { label: 'Teacher directory', to: '/app/modules/academics/teachers', icon: GraduationCap },
@@ -49,8 +46,8 @@ export const adminNav: NavGroup[] = [
     { label: 'Attendance reports', to: '/app/modules/reports/attendance', icon: FileBarChart },
   ] },
   { label: 'Examinations', icon: ClipboardCheck, items: [
-    { label: 'Exams & schedules', to: '/app/modules/academics/exams', icon: CalendarCheck },
-    { label: 'Marks & report cards', to: '/app/modules/academics/marks', icon: FileBarChart },
+    { label: 'Examinations', to: '/app/modules/academics/exams?exam=fa1', icon: CalendarCheck },
+    { label: 'Marks & report cards', to: '/app/modules/academics/marks?exam=fa1', icon: FileBarChart },
   ] },
   { label: 'Fees & Finance', icon: Wallet, items: [
     { label: 'Finance dashboard', to: '/app/modules/finance/dashboard', icon: ChartNoAxesCombined },

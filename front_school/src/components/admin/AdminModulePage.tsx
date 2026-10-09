@@ -1,229 +1,286 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ArrowDownToLine, ArrowUpDown, Check, ChevronLeft, ChevronRight, Eye, FileDown, Filter, MoreHorizontal, Plus, Search, Settings2, Trash2, X } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, CalendarCheck, Check, FileDown, Plus, Search, Users, X } from 'lucide-react';
 import { adminNav, type NavLinkItem } from '../../data/adminNavigation';
-import { activityRows, classDistribution, enrollment, financeYear, genderDistribution, moduleRows, parentRows, studentRows, type DemoRow } from '../../data/adminDemo';
-import { BarChart, DonutChart, LineChart } from '../charts/AdminCharts';
 
-const panel = 'rounded-xl border border-[#303238] bg-[#1b1c20]';
-const templates: Record<string, DemoRow[]> = {
-  'finance/dashboard': [{ metric: 'Collection this month', value: '₹31.2L', change: '+8.6%' }, { metric: 'Pending fees', value: '₹18.42L', change: '124 students' }, { metric: 'Overdue', value: '₹2.64L', change: '38 accounts' }],
-  'accounts/dashboard': [{ metric: 'Today’s collection', value: '₹2,48,500', change: 'Across 42 receipts' }, { metric: 'Income this month', value: '₹31.2L', change: '+8.6%' }, { metric: 'Expense this month', value: '₹21.3L', change: '68.3% of income' }],
-  'academics/dashboard': [{ metric: 'Active classes', value: '36', change: 'Across 3 sections' }, { metric: 'Scheduled exams', value: '4', change: 'Next: 05 Oct' }, { metric: 'Teachers on timetable', value: '92', change: '86 present today' }],
-  'finance/ledger': [{ admission: 'ADM-24081', student: 'Rahul Sharma', class: 'VIII-A', assigned: '₹42,000', paid: '₹30,000', balance: '₹12,000', status: 'Due soon' }, { admission: 'ADM-24085', student: 'Shaurya Mishra', class: 'X-A', assigned: '₹49,000', paid: '₹36,500', balance: '₹12,500', status: 'Overdue' }, { admission: 'ADM-24090', student: 'Myra Khan', class: 'III-C', assigned: '₹26,000', paid: '₹26,000', balance: '₹0', status: 'Paid' }],
-  'finance/payments': moduleRows['finance/fees'], 'finance/receipts': moduleRows['finance/fees'], 'finance/discounts': [{ student: 'Ananya Desai', class: 'VII-B', type: 'Sibling concession', amount: '₹2,500', date: '25 Sep 2026', status: 'Approved' }, { student: 'Vivaan Patel', class: 'II-B', type: 'Merit scholarship', amount: '₹5,000', date: '18 Sep 2026', status: 'Pending' }],
-  'accounts/chart': [{ code: '1001', account: 'Cash in hand', type: 'Asset', balance: '₹1,42,500', status: 'Active' }, { code: '1002', account: 'HDFC current account', type: 'Asset', balance: '₹18,42,600', status: 'Active' }, { code: '4001', account: 'Tuition fee income', type: 'Income', balance: '₹2,48,00,000', status: 'Active' }],
-  'accounts/income-heads': [{ name: 'Tuition fee', type: 'Student fees', transactions: '1,482', status: 'Active' }, { name: 'Transport fee', type: 'Student fees', transactions: '614', status: 'Active' }, { name: 'Auditorium rent', type: 'Other income', transactions: '12', status: 'Active' }],
-  'accounts/expense-heads': [{ name: 'Electricity bill', type: 'Utilities', transactions: '12', status: 'Active' }, { name: 'Stationery purchase', type: 'Academic supplies', transactions: '24', status: 'Active' }, { name: 'Staff salary', type: 'Payroll', transactions: '12', status: 'Active' }],
-  'accounts/banks': [{ account: 'School operating account', type: 'Current', bank: 'HDFC · MG Road Branch', number: '•••• 4821', balance: '₹18,42,600', status: 'Active' }, { account: 'Fee collection account', type: 'Current', bank: 'ICICI · Central Branch', number: '•••• 9044', balance: '₹8,26,300', status: 'Active' }],
-  'academics/sections': [{ section: 'VIII-A', class: 'Class VIII', students: '39', classTeacher: 'Meera Nair', status: 'Active' }, { section: 'VIII-B', class: 'Class VIII', students: '40', classTeacher: 'Nisha Verma', status: 'Active' }, { section: 'IX-A', class: 'Class IX', students: '42', classTeacher: 'Arjun Rao', status: 'Active' }],
-  'academics/subjects': [{ code: 'MAT-08', subject: 'Mathematics', classes: 'VI–X', teachers: '8', status: 'Active' }, { code: 'SCI-08', subject: 'Science', classes: 'VI–X', teachers: '7', status: 'Active' }, { code: 'ENG-08', subject: 'English', classes: 'I–XII', teachers: '12', status: 'Active' }],
-  'academics/timetable': [{ day: 'Monday', time: '08:30–09:15', class: 'VIII-A', subject: 'Mathematics', teacher: 'Meera Nair', status: 'Scheduled' }, { day: 'Monday', time: '09:15–10:00', class: 'IX-B', subject: 'Science', teacher: 'Arjun Rao', status: 'Scheduled' }],
-  'academics/marks': [{ exam: 'Unit Test 2', class: 'VIII-A', subject: 'Mathematics', students: '39', submitted: '35 / 39', status: 'In progress' }, { exam: 'Unit Test 2', class: 'VII-B', subject: 'English', students: '38', submitted: '38 / 38', status: 'Published' }],
-  'academics/homework': [{ title: 'Algebra practice · Chapter 5', class: 'VIII-A', subject: 'Mathematics', due: '03 Oct 2026', teacher: 'Meera Nair', status: 'Assigned' }, { title: 'The human respiratory system', class: 'IX-B', subject: 'Science', due: '02 Oct 2026', teacher: 'Arjun Rao', status: 'Assigned' }],
-  'students/attendance': studentRows.slice(0, 8).map((row, index) => ({ admission: row.admission, student: row.name, class: `${row.class}-${row.section}`, roll: row.roll, attendance: index === 4 ? 'Absent' : index === 2 ? 'Late' : 'Present', remarks: index === 4 ? 'Parent informed' : '—' })),
-  'students/photo-search': [], 'students/dashboard': studentRows.slice(0, 6),
-  'students/parents': parentRows, 'students/behavior': moduleRows['students/behavior'], 'students/categories': moduleRows['students/categories'], 'students/houses': moduleRows['students/houses'],
-  'hr/attendance': [{ name: 'Meera Nair', department: 'Academics', checkIn: '08:12 AM', hours: '7h 24m', status: 'Present' }, { name: 'Arjun Rao', department: 'Academics', checkIn: '08:36 AM', hours: '7h 00m', status: 'Present' }, { name: 'Nisha Verma', department: 'Academics', checkIn: '—', hours: '—', status: 'On leave' }],
-  'hr/leave': [{ staff: 'Nisha Verma', type: 'Casual leave', from: '29 Sep 2026', to: '30 Sep 2026', days: '2', status: 'Pending' }, { staff: 'Rahul Menon', type: 'Sick leave', from: '26 Sep 2026', to: '26 Sep 2026', days: '1', status: 'Approved' }],
-  'hr/payroll': [{ staff: 'Meera Nair', department: 'Academics', month: 'September 2026', netPay: '₹58,400', status: 'Processed' }, { staff: 'Arjun Rao', department: 'Academics', month: 'September 2026', netPay: '₹54,800', status: 'Processed' }],
-  'website/pages': [{ title: 'About our school', lastUpdated: '20 Sep 2026', updatedBy: 'Nisha Verma', visibility: 'Public', status: 'Published' }, { title: 'Admissions 2026–27', lastUpdated: '18 Sep 2026', updatedBy: 'Nisha Verma', visibility: 'Public', status: 'Published' }],
-  'website/notices': moduleRows['communication/notices'], 'front-office/enquiries': [{ name: 'Rohan Malhotra', forClass: 'Class VI', phone: '+91 98880 12345', source: 'Website', received: '29 Sep 2026', status: 'Follow-up' }, { name: 'Anita Rao', forClass: 'Class I', phone: '+91 98450 45218', source: 'Walk-in', received: '28 Sep 2026', status: 'New' }],
-  'front-office/complaints': [{ ticket: 'CMP-2041', subject: 'Bus route timing', raisedBy: 'Amit Sharma', assignedTo: 'Transport desk', date: '28 Sep 2026', status: 'In progress' }],
-  'communication/notices': moduleRows['communication/notices'], 'communication/messages': [{ subject: 'Fee reminder · September', audience: '124 parents', channel: 'SMS + app', sent: 'Today, 9:00 AM', status: 'Delivered' }, { subject: 'Sports day information', audience: 'All parents', channel: 'App notification', sent: 'Yesterday', status: 'Delivered' }],
-  'communication/sms': [{ campaign: 'Fee reminder · September', recipients: '124', sent: '29 Sep 2026, 9:00 AM', delivered: '121', status: 'Complete' }],
-  'reports/students': [{ report: 'Student strength by class', period: '2026–27', generated: 'Today, 9:10 AM', createdBy: 'Nisha Verma', status: 'Ready' }, { report: 'New admissions', period: 'September 2026', generated: 'Yesterday', createdBy: 'Nisha Verma', status: 'Ready' }],
-  'reports/attendance': [{ report: 'Daily attendance summary', period: 'September 2026', generated: 'Today, 8:15 AM', createdBy: 'Meera Nair', status: 'Ready' }],
-  'reports/finance': [{ report: 'Fee collection summary', period: 'September 2026', generated: 'Today, 8:00 AM', createdBy: 'Priya Shah', status: 'Ready' }],
-  'reports/academics': [{ report: 'Unit Test 2 results', period: 'Term 1 · 2026–27', generated: '26 Sep 2026', createdBy: 'Arjun Rao', status: 'Ready' }],
-  'settings/users': moduleRows['settings/users'], 'settings/audit-logs': activityRows.map((row) => ({ user: row.detail, action: row.title, module: 'SchoolOS', record: row.detail, ip: 'Local development', time: row.time })),
-  'settings/permissions': [{ role: 'School admin', users: '4', access: 'School-wide', status: 'Active' }, { role: 'Accountant', users: '2', access: 'Finance & fees', status: 'Active' }, { role: 'Teacher', users: '92', access: 'Academic tools', status: 'Active' }],
-  'settings/school-profile': [{ field: 'School name', value: 'Northstar Academy', updated: '12 Aug 2026' }, { field: 'Academic year', value: '2026–2027', updated: '01 Apr 2026' }, { field: 'Contact email', value: 'office@northstar.edu.in', updated: '12 Aug 2026' }],
-  'settings/session': [{ session: '2026–2027', startDate: '01 Apr 2026', endDate: '31 Mar 2027', students: '1,466', status: 'Current' }, { session: '2025–2026', startDate: '01 Apr 2025', endDate: '31 Mar 2026', students: '1,421', status: 'Archived' }],
-  'settings/notifications': [{ event: 'New admission', recipients: 'Admissions team', channel: 'In-app, email', status: 'Enabled' }, { event: 'Fee payment received', recipients: 'Accounts team', channel: 'In-app', status: 'Enabled' }],
-  'settings/payment': [{ method: 'UPI', provider: 'School payment gateway', settlement: 'T+1', status: 'Enabled' }, { method: 'Bank transfer', provider: 'HDFC current account', settlement: 'T+0', status: 'Enabled' }],
-  'settings/system': [{ setting: 'Timezone', value: 'Asia/Kolkata', scope: 'School', status: 'Active' }, { setting: 'Date format', value: 'DD MMM YYYY', scope: 'School', status: 'Active' }],
-  'settings/backup': [{ backup: 'Monthly archive', created: '01 Sep 2026, 1:00 AM', size: '428 MB', location: 'Local snapshot', status: 'Complete' }],
-  'navigator/overview': [], 'support/tickets': [{ ticket: 'SUP-1084', subject: 'Update transport routes', requester: 'Priya Shah', opened: '28 Sep 2026', priority: 'Normal', status: 'Open' }],
+type Column = { key: string; label: string };
+type ModuleConfig = {
+  title: string;
+  group: string;
+  description: string;
+  endpoint: string;
+  columns: Column[];
+  fields?: { key: string; label: string; type?: string; required?: boolean }[];
+  filters?: string[];
+  empty: string;
 };
 
-const fallbackByKey: Record<string, DemoRow[]> = {
-  'finance/discounts': templates['finance/discounts'],
-  'finance/payments': templates['finance/payments'], 'finance/receipts': templates['finance/receipts'],
+const panel = 'rounded-xl border border-slate-200 bg-white shadow-sm';
+const input = 'mt-1.5 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-[#7b1734] focus:ring-2 focus:ring-[#7b1734]/10';
+const examTypes = [
+  { slug: 'fa1', label: 'FA1' },
+  { slug: 'fa2', label: 'FA2' },
+  { slug: 'mid-term', label: 'Mid-Term' },
+  { slug: 'fa3', label: 'FA3' },
+  { slug: 'fa4', label: 'FA4' },
+  { slug: 'final', label: 'Final' },
+];
+
+const moduleConfigs: Record<string, ModuleConfig> = {
+  'students/dashboard': {
+    title: 'Student Dashboard',
+    group: 'Student information',
+    description: 'Student summary widgets will appear after the student dashboard API is connected.',
+    endpoint: '/api/student-dashboard',
+    columns: [{ key: 'metric', label: 'Metric' }, { key: 'value', label: 'Value' }],
+    empty: 'No student dashboard records available.',
+  },
+  'students/profile': {
+    title: 'Student Profiles',
+    group: 'Student information',
+    description: 'Search student profiles without exposing personal details outside authorized modules.',
+    endpoint: '/api/students/:id/profile',
+    columns: [
+      { key: 'admission_no', label: 'Admission number' },
+      { key: 'student_name', label: 'Student name' },
+      { key: 'class', label: 'Class' },
+      { key: 'section', label: 'Section' },
+    ],
+    empty: 'No student profile records available.',
+  },
+  'students/religion': {
+    title: 'Student Religion',
+    group: 'Student information',
+    description: 'Authorized users can maintain student religion values when the backend endpoint is available.',
+    endpoint: '/api/students/religion',
+    columns: [
+      { key: 'admission_no', label: 'Admission number' },
+      { key: 'student_name', label: 'Student name' },
+      { key: 'class', label: 'Class' },
+      { key: 'section', label: 'Section' },
+      { key: 'religion', label: 'Religion' },
+    ],
+    fields: [
+      { key: 'admission_no', label: 'Student admission number', required: true },
+      { key: 'religion', label: 'Religion', required: true },
+    ],
+    filters: ['Class', 'Section'],
+    empty: 'No student religion records available.',
+  },
+  'students/attendance': {
+    title: 'Student Attendance',
+    group: 'Attendance',
+    description: 'Mark and review attendance records returned by the attendance API.',
+    endpoint: '/api/attendance/students',
+    columns: [
+      { key: 'admission_no', label: 'Admission number' },
+      { key: 'student_name', label: 'Student name' },
+      { key: 'class', label: 'Class' },
+      { key: 'section', label: 'Section' },
+      { key: 'date', label: 'Date' },
+      { key: 'session', label: 'Session' },
+      { key: 'remark', label: 'Remark' },
+    ],
+    fields: [
+      { key: 'admission_no', label: 'Student admission number', required: true },
+      { key: 'date', label: 'Date', type: 'date', required: true },
+      { key: 'session', label: 'Session' },
+      { key: 'remark', label: 'Remark' },
+    ],
+    filters: ['Class', 'Section', 'Date'],
+    empty: 'No attendance records available.',
+  },
+  'hr/attendance': {
+    title: 'Teacher & Staff Attendance',
+    group: 'Attendance',
+    description: 'Attendance-only staff records. Payroll and salary fields are intentionally excluded.',
+    endpoint: '/api/staff/attendance',
+    columns: [
+      { key: 'staff_id', label: 'Staff ID' },
+      { key: 'staff_name', label: 'Staff name' },
+      { key: 'date', label: 'Date' },
+      { key: 'check_in', label: 'Check-in time' },
+      { key: 'check_out', label: 'Check-out time' },
+      { key: 'remark', label: 'Remark' },
+    ],
+    fields: [
+      { key: 'staff_id', label: 'Staff ID', required: true },
+      { key: 'date', label: 'Date', type: 'date', required: true },
+      { key: 'check_in', label: 'Check-in time', type: 'time' },
+      { key: 'check_out', label: 'Check-out time', type: 'time' },
+      { key: 'remark', label: 'Remark' },
+    ],
+    filters: ['Date', 'Department'],
+    empty: 'No teacher or staff attendance records available.',
+  },
+  'academics/exams': {
+    title: 'Examinations',
+    group: 'Academics',
+    description: 'Select an examination type to retrieve schedules, marks entry, and report-card data.',
+    endpoint: '/api/examinations?type={examType}',
+    columns: [
+      { key: 'academic_year', label: 'Academic year' },
+      { key: 'class', label: 'Class' },
+      { key: 'section', label: 'Section' },
+      { key: 'subject', label: 'Subject' },
+      { key: 'exam_date', label: 'Exam date' },
+      { key: 'maximum_marks', label: 'Maximum marks' },
+    ],
+    fields: [
+      { key: 'academic_year', label: 'Academic year', required: true },
+      { key: 'class', label: 'Class', required: true },
+      { key: 'section', label: 'Section' },
+      { key: 'subject', label: 'Subject', required: true },
+      { key: 'exam_date', label: 'Exam date', type: 'date' },
+      { key: 'maximum_marks', label: 'Maximum marks', type: 'number' },
+    ],
+    filters: ['Academic year', 'Class', 'Section', 'Subject'],
+    empty: 'No examination records available.',
+  },
+  'academics/marks': {
+    title: 'Marks & Report Cards',
+    group: 'Academics',
+    description: 'Marks entry and report-card access are scoped to the selected examination type.',
+    endpoint: '/api/examinations/{examType}/marks',
+    columns: [
+      { key: 'admission_no', label: 'Admission number' },
+      { key: 'student_name', label: 'Student name' },
+      { key: 'subject', label: 'Subject' },
+      { key: 'marks_obtained', label: 'Marks obtained' },
+      { key: 'maximum_marks', label: 'Maximum marks' },
+    ],
+    fields: [
+      { key: 'admission_no', label: 'Student admission number', required: true },
+      { key: 'subject', label: 'Subject', required: true },
+      { key: 'marks_obtained', label: 'Marks obtained', type: 'number', required: true },
+      { key: 'maximum_marks', label: 'Maximum marks', type: 'number', required: true },
+    ],
+    filters: ['Class', 'Section', 'Subject'],
+    empty: 'No marks or report-card records available.',
+  },
 };
 
-function generatedRows(key: string): DemoRow[] {
-  const source = moduleRows[key] ?? fallbackByKey[key];
-  if (source?.length) return source;
-  const parts = key.split('/');
-  const module = parts[0] ?? 'School';
-  const label = humanize(parts.slice(1).join(' ') || module);
-  if (key.startsWith('search/')) return [...studentRows, ...parentRows].map((row) => ({ ...row }));
-  if (key === 'navigator/overview') return adminNav.flatMap((group) => group.items).slice(0, 10).map((item) => ({ module: item.label, area: 'Management', records: 'View records', status: 'Available' }));
-  if (key === 'students/photo-search') return [];
-  if (key === 'students/dashboard') return studentRows.slice(0, 6);
-  return Array.from({ length: 4 }, (_, index) => ({
-    name: [`${label} overview`, `${label} · September`, `${label} review`, `New ${label.toLowerCase()}`][index],
-    category: `${humanize(module)} operations`, owner: ['Nisha Verma', 'Meera Nair', 'Priya Shah', 'Arjun Rao'][index],
-    date: ['29 Sep 2026', '28 Sep 2026', '26 Sep 2026', '24 Sep 2026'][index],
-    amount: ['₹24,500', '₹18,000', '₹8,420', '₹6,000'][index], status: ['Active', 'Pending', 'Complete', 'Active'][index],
-  }));
+function defaultConfig(key: string): ModuleConfig {
+  const keyParts = key.split('/');
+  const label = humanize(keyParts[keyParts.length - 1] || 'Records');
+  return {
+    title: label,
+    group: titleFor(key).group,
+    description: `${label} is ready for backend data. Records are not fabricated in the frontend.`,
+    endpoint: `/api/${key}`,
+    columns: [
+      { key: 'name', label: 'Name' },
+      { key: 'description', label: 'Description' },
+      { key: 'updated_at', label: 'Updated at' },
+    ],
+    fields: [
+      { key: 'name', label: 'Name', required: true },
+      { key: 'description', label: 'Description' },
+    ],
+    empty: 'No records available.',
+  };
 }
-
-function humanize(value: string) { return value.replace(/[-_]/g, ' ').replace(/\b\w/g, (character: string) => character.toUpperCase()); }
-function titleFor(key: string) { for (const group of adminNav) { const found = flattenGroup(group.items).find((item) => item.to?.endsWith(`/modules/${key}`)); if (found) return { title: found.label, group: group.label }; } const parts = key.split('/'); return { title: humanize(parts[parts.length - 1] || 'Overview'), group: humanize(parts[0] || 'Workspace') }; }
-function flattenGroup(items: NavLinkItem[]): NavLinkItem[] { return items.flatMap((item) => [item, ...(item.children ? flattenGroup(item.children) : [])]); }
 
 export default function AdminModulePage() {
-  const { module = 'navigator', page = 'overview' } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const module = location.pathname.split('/modules/')[1]?.split('/')[0] || 'navigator';
+  const page = location.pathname.split('/modules/')[1]?.split('/')[1] || 'overview';
   const key = `${module}/${page}`;
-  if (key === 'students/admission') return <StudentAdmission />;
-  if (key === 'students/photo-search') return <PhotoSearch />;
-  if (key === 'students/attendance') return <AttendanceManagement />;
-  if (key === 'students/profile') return <StudentProfile />;
-  if (key === 'settings/permissions') return <PermissionsPage />;
-  if (key.endsWith('/dashboard') || key === 'students/dashboard' || key === 'reports/overview') return <ModuleOverview moduleKey={key} />;
-  return <TableModule moduleKey={key} />;
-}
-
-function TableModule({ moduleKey }: { moduleKey: string }) {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const initialRows = useMemo(() => generatedRows(moduleKey), [moduleKey]);
-  const [rows, setRows] = useState<DemoRow[]>(initialRows);
-  useEffect(() => { setRows(initialRows); setPage(1); setSelected([]); }, [initialRows]);
-  const [search, setSearch] = useState(searchParams.get('q') ?? '');
-  const [statusFilter, setStatusFilter] = useState('All status');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(8);
-  const [sort, setSort] = useState('');
-  const [ascending, setAscending] = useState(true);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
-  const [columnMenu, setColumnMenu] = useState(false);
-  const [modal, setModal] = useState<{ mode: 'create' | 'edit' | 'view'; row?: DemoRow } | null>(null);
-  const [actionRow, setActionRow] = useState<DemoRow | null>(null);
-  const [toast, setToast] = useState('');
-  const meta = titleFor(moduleKey);
-  const columns = Object.keys(rows[0] ?? { name: 'No records', status: 'Active' });
-  const filtered = rows.filter((row) => Object.values(row).join(' ').toLowerCase().includes(search.toLowerCase()) && (statusFilter === 'All status' || row.status === statusFilter));
-  const sorted = sort ? [...filtered].sort((a, b) => String(a[sort]).localeCompare(String(b[sort]), undefined, { numeric: true }) * (ascending ? 1 : -1)) : filtered;
-  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const shown = sorted.slice((page - 1) * pageSize, page * pageSize);
-  const showToast = (message: string) => { setToast(message); window.setTimeout(() => setToast(''), 2800); };
-  const exportCsv = () => {
-    const csv = [columns.join(','), ...filtered.map((row) => columns.map((column) => `"${String(row[column] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${moduleKey.replace('/', '-')}.csv`; anchor.click(); URL.revokeObjectURL(url);
-    showToast('CSV export downloaded');
-  };
-  const handleSave = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const next = Object.fromEntries(columns.map((column) => [column, String(form.get(column) ?? modal?.row?.[column] ?? '')]));
-    if (modal?.mode === 'edit' && modal.row) setRows((current) => current.map((row) => row === modal.row ? { ...row, ...next } : row));
-    else setRows((current) => [{ ...next, [columns[0]]: next[columns[0]] || `NEW-${String(current.length + 1).padStart(4, '0')}`, status: next.status || 'Active' }, ...current]);
-    setModal(null); showToast(modal?.mode === 'edit' ? 'Record updated' : 'Record created');
-  };
-  const toggleRow = (keyValue: string) => setSelected((current) => current.includes(keyValue) ? current.filter((item) => item !== keyValue) : [...current, keyValue]);
-  const selectAll = () => setSelected(selected.length === shown.length ? [] : shown.map((row) => Object.values(row).join('|')));
-  const bulkDelete = () => { if (!window.confirm(`Delete ${selected.length} selected records?`)) return; setRows((current) => current.filter((row) => !selected.includes(Object.values(row).join('|')))); setSelected([]); showToast('Selected records deleted'); };
-  const deleteRow = (row: DemoRow) => { if (!window.confirm(`Delete ${Object.values(row)[0]}?`)) return; setRows((current) => current.filter((item) => item !== row)); setActionRow(null); showToast('Record deleted'); };
-
-  return <div className="space-y-5 pb-8">
-    <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-400">{meta.group}</p><h1 className="mt-1 text-2xl font-semibold text-white">{meta.title}</h1><p className="mt-1 text-xs text-slate-500">Manage {meta.title.toLowerCase()} records and review recent activity.</p></div><div className="flex flex-wrap gap-2"><button onClick={() => showToast('Bulk upload template is ready to download')} className="h-9 rounded-md border border-[#3a3c42] px-3 text-xs text-slate-300 hover:bg-white/5">Bulk upload</button><button onClick={exportCsv} className="flex h-9 items-center gap-2 rounded-md border border-[#3a3c42] px-3 text-xs text-slate-300 hover:bg-white/5"><ArrowDownToLine className="size-3.5" />Export CSV</button><button onClick={() => setModal({ mode: 'create' })} className="flex h-9 items-center gap-2 rounded-md bg-sky-600 px-3 text-xs font-medium text-white hover:bg-sky-500"><Plus className="size-4" />{actionLabel(moduleKey)}</button></div></header>
-    <div className="grid gap-3 sm:grid-cols-3">{[
-      { label: 'Total records', value: rows.length.toLocaleString('en-IN'), tone: 'text-sky-300' },
-      { label: 'Active / complete', value: rows.filter((row) => ['Active', 'Paid', 'Complete', 'Published', 'Approved', 'Present', 'Ready'].includes(row.status ?? '')).length.toLocaleString('en-IN'), tone: 'text-emerald-300' },
-      { label: 'Needs attention', value: rows.filter((row) => ['Pending', 'Overdue', 'Follow-up', 'In progress'].includes(row.status ?? '')).length.toLocaleString('en-IN'), tone: 'text-orange-300' },
-    ].map((stat) => <div key={stat.label} className={`${panel} flex items-center justify-between px-4 py-3`}><span className="text-xs text-slate-400">{stat.label}</span><strong className={`text-lg font-semibold ${stat.tone}`}>{stat.value}</strong></div>)}</div>
-    <section className={`${panel} overflow-hidden`}>
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#2e3035] p-3">
-        <div className="relative min-w-[200px] flex-1"><Search className="absolute left-2.5 top-2.5 size-3.5 text-slate-500" /><input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder={`Search ${meta.title.toLowerCase()}…`} className="h-8 w-full rounded-md border border-[#35373d] bg-[#202126] pl-8 pr-3 text-xs text-slate-200 outline-none placeholder:text-slate-600 focus:border-[#527cae]" /></div>
-        <label className="flex h-8 items-center gap-2 rounded-md border border-[#35373d] bg-[#202126] px-2.5 text-xs text-slate-500"><Filter className="size-3.5" /><select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }} className="bg-transparent text-xs text-slate-300 outline-none"><option>All status</option>{[...new Set(rows.map((row) => row.status).filter(Boolean))].map((status) => <option key={status}>{status}</option>)}</select></label>
-        <div className="relative"><button onClick={() => setColumnMenu(!columnMenu)} className="flex h-8 items-center gap-2 rounded-md border border-[#35373d] px-2.5 text-xs text-slate-400 hover:bg-white/5"><Settings2 className="size-3.5" /><span className="hidden sm:inline">Columns</span></button>{columnMenu && <div className="absolute right-0 top-9 z-20 w-48 rounded-lg border border-[#3a3c42] bg-[#222328] p-2 shadow-xl">{columns.map((column) => <label key={column} className="flex items-center gap-2 px-2 py-1.5 text-xs capitalize text-slate-300"><input type="checkbox" checked={!hiddenColumns.includes(column)} onChange={() => setHiddenColumns((current) => current.includes(column) ? current.filter((item) => item !== column) : [...current, column])} />{humanize(column)}</label>)}</div>}</div>
-        {selected.length > 0 && <button onClick={bulkDelete} className="flex h-8 items-center gap-1.5 rounded-md border border-rose-900 px-2.5 text-xs text-rose-300 hover:bg-rose-500/10"><Trash2 className="size-3.5" />Delete {selected.length}</button>}
-      </div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-xs">
-        <thead className="bg-[#202126] text-[10px] font-semibold uppercase tracking-wide text-slate-500"><tr><th className="w-9 px-3 py-3"><input aria-label="Select all rows" type="checkbox" checked={shown.length > 0 && selected.length === shown.length} onChange={selectAll} /></th>{columns.filter((column) => !hiddenColumns.includes(column)).map((column) => <th key={column} className="px-3 py-3"><button onClick={() => { setSort(column); setAscending(sort === column ? !ascending : true); }} className="inline-flex items-center gap-1 whitespace-nowrap hover:text-slate-200">{humanize(column)}<ArrowUpDown className="size-3" /></button></th>)}<th className="w-12 px-3 py-3">Actions</th></tr></thead>
-        <tbody className="divide-y divide-[#292b30]">{shown.map((row) => { const rowKey = Object.values(row).join('|'); return <tr key={rowKey} className="transition hover:bg-white/[0.025]"><td className="px-3 py-3"><input aria-label={`Select ${Object.values(row)[0]}`} type="checkbox" checked={selected.includes(rowKey)} onChange={() => toggleRow(rowKey)} /></td>{columns.filter((column) => !hiddenColumns.includes(column)).map((column) => <td key={column} className={`max-w-[260px] truncate px-3 py-3 ${column === columns[0] ? 'font-medium text-slate-200' : 'text-slate-400'}`}>{column.toLowerCase().includes('status') ? <StatusPill value={row[column]} /> : row[column]}</td>)}<td className="relative px-3 py-3"><button onClick={() => setActionRow(actionRow === row ? null : row)} title="Record actions" className="grid size-7 place-items-center rounded text-slate-500 hover:bg-white/5 hover:text-slate-100"><MoreHorizontal className="size-4" /></button>{actionRow === row && <div className="absolute right-7 top-2 z-20 w-32 rounded-md border border-[#393b41] bg-[#222328] p-1 shadow-xl"><button onClick={() => { setModal({mode:'view',row});setActionRow(null); }} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-slate-300 hover:bg-white/5"><Eye className="size-3" />View</button><button onClick={() => { setModal({mode:'edit',row});setActionRow(null); }} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-slate-300 hover:bg-white/5"><Settings2 className="size-3" />Edit</button><button onClick={() => deleteRow(row)} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[11px] text-rose-300 hover:bg-rose-500/10"><Trash2 className="size-3" />Delete</button></div>}</td></tr>; })}</tbody>
-      </table></div>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#2e3035] px-3 py-3 text-[11px] text-slate-500"><span>Showing {sorted.length ? (page - 1) * pageSize + 1 : 0}–{Math.min(page * pageSize, sorted.length)} of {sorted.length.toLocaleString('en-IN')} records</span><div className="flex items-center gap-3"><label className="flex items-center gap-1.5">Rows<select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }} className="rounded border border-[#37393f] bg-[#202126] px-1.5 py-1 text-slate-300">{[8, 15, 25, 50].map((size) => <option key={size}>{size}</option>)}</select></label><div className="flex items-center gap-1"><button disabled={page <= 1} onClick={() => setPage(page - 1)} aria-label="Previous page" className="grid size-7 place-items-center rounded border border-[#37393f] disabled:opacity-35"><ChevronLeft className="size-3.5" /></button><span className="min-w-14 text-center">Page {page} / {pageCount}</span><button disabled={page >= pageCount} onClick={() => setPage(page + 1)} aria-label="Next page" className="grid size-7 place-items-center rounded border border-[#37393f] disabled:opacity-35"><ChevronRight className="size-3.5" /></button></div></div></footer>
-    </section>
-    {toast && <div role="status" className="fixed bottom-5 right-5 z-[70] rounded-lg border border-emerald-900 bg-[#202923] px-4 py-3 text-xs text-emerald-300 shadow-xl"><Check className="mr-2 inline size-4" />{toast}</div>}
-    {modal && <RecordModal mode={modal.mode} row={modal.row} columns={columns} onClose={() => setModal(null)} onSubmit={handleSave} />}
-  </div>;
-}
-
-function ModuleOverview({ moduleKey }: { moduleKey: string }) {
-  const navigate = useNavigate();
-  const title = titleFor(moduleKey);
-  const stats = generatedRows(moduleKey);
-  const isStudent = moduleKey === 'students/dashboard';
-  return <div className="space-y-5 pb-8"><header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-400">{title.group}</p><h1 className="mt-1 text-2xl font-semibold text-white">{title.title}</h1><p className="mt-1 text-xs text-slate-500">{isStudent ? 'Student information and operational overview.' : 'Performance overview · Academic year 2026–27'}</p></div><button onClick={() => navigate('/app/modules/students/admission')} className="flex h-9 items-center gap-2 rounded-md bg-sky-600 px-3 text-xs font-medium text-white"><Plus className="size-4" />Add student</button></header>
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{(isStudent ? [{ metric: 'Students this session', value: '1,466', change: '+32 this month' }, { metric: 'New admissions', value: '38', change: 'This term' }, { metric: 'Present today', value: '1,378', change: '94.0% attendance' }, { metric: 'Behavior records', value: '12', change: '3 need review' }] : stats).map((item) => <div key={item.metric} className={`${panel} p-4`}><p className="text-xs text-slate-500">{item.metric}</p><strong className="mt-3 block text-2xl font-semibold text-slate-100">{item.value}</strong><p className="mt-1 text-[10px] text-emerald-400">{item.change}</p></div>)}</div>
-    {moduleKey.startsWith('finance/')||moduleKey.startsWith('accounts/')?<div className="grid gap-4 xl:grid-cols-2"><section className={`${panel} p-5`}><h2 className="mb-5 text-sm font-semibold text-slate-100">Income vs expense · ₹ lakhs</h2><BarChart data={financeYear} series={[{key:'income',label:'Income',color:'#27b89c'},{key:'expense',label:'Expense',color:'#ef9b55'}]}/></section><section className={`${panel} p-5`}><h2 className="mb-5 text-sm font-semibold text-slate-100">Payment methods</h2><DonutChart data={[{label:'UPI',value:44,color:'#5b8def'},{label:'Cash',value:31,color:'#25b8a5'},{label:'Bank transfer',value:15,color:'#9a7af5'},{label:'Card',value:8,color:'#ed9f54'},{label:'Cheque',value:2,color:'#df6c76'}]} totalLabel="Payments"/></section><section className={`${panel} p-5 xl:col-span-2`}><h2 className="mb-4 text-sm font-semibold text-slate-100">Recent transactions</h2><div className="divide-y divide-[#2a2c31]">{moduleRows['finance/fees'].map((row)=><div key={row.receipt} className="flex items-center justify-between gap-3 py-3 text-xs"><span className="text-slate-200">{row.student} · {row.type}</span><span className="text-slate-500">{row.date}</span><strong className="text-emerald-300">{row.amount}</strong></div>)}</div></section></div>:moduleKey.startsWith('academics/')?<div className="grid gap-4 xl:grid-cols-2"><section className={`${panel} p-5`}><h2 className="mb-5 text-sm font-semibold text-slate-100">Enrollment by class band</h2><DonutChart data={classDistribution}/></section><section className={`${panel} p-5`}><h2 className="mb-5 text-sm font-semibold text-slate-100">Term performance</h2><LineChart data={[{label:'Term 1',math:78,science:81,english:84},{label:'Term 2',math:81,science:83,english:85},{label:'Term 3',math:84,science:86,english:88},{label:'Final',math:86,science:89,english:90}]} series={[{key:'math',label:'Mathematics',color:'#5b8def'},{key:'science',label:'Science',color:'#25b8a5'},{key:'english',label:'English',color:'#9a7af5'}]}/></section><section className={`${panel} p-5 xl:col-span-2`}><h2 className="mb-4 text-sm font-semibold text-slate-100">Upcoming assessments</h2><div className="grid gap-2 sm:grid-cols-2">{moduleRows['academics/exams'].map((row)=><div key={row.name} className="rounded-md bg-[#222328] p-3"><p className="text-xs text-slate-200">{row.name}</p><p className="mt-1 text-[10px] text-slate-500">{row.starts} – {row.ends} · {row.classes}</p></div>)}</div></section></div>:<div className="grid gap-4 xl:grid-cols-2"><section className={`${panel} p-5`}><h2 className="mb-5 text-sm font-semibold text-slate-100">Students by class</h2><DonutChart data={classDistribution}/></section><section className={`${panel} p-5`}><h2 className="mb-5 text-sm font-semibold text-slate-100">Enrollment trend</h2><LineChart data={enrollment} series={[{key:'admissions',label:'New admissions',color:'#39bca3'},{key:'total',label:'Total students',color:'#6693f1'}]}/></section><section className={`${panel} p-5`}><h2 className="mb-5 text-sm font-semibold text-slate-100">Gender distribution</h2><DonutChart data={genderDistribution}/></section><section className={`${panel} p-5`}><h2 className="mb-4 text-sm font-semibold text-slate-100">Recent activity</h2><div className="divide-y divide-[#2a2c31]">{activityRows.map((row)=><div key={row.action} className="flex items-center justify-between gap-3 py-3 first:pt-0"><div><p className="text-xs text-slate-200">{row.action}</p><p className="mt-1 text-[10px] text-slate-500">{row.record}</p></div><span className="text-[10px] text-slate-500">{row.time}</span></div>)}</div></section></div>}
-    <section className={`${panel} p-5`}><div className="mb-4 flex items-center justify-between"><h2 className="text-sm font-semibold text-slate-100">Upcoming birthdays · next 30 days</h2><button onClick={() => navigate('/app/students')} className="text-xs text-sky-400">View students</button></div><div className="grid gap-3 sm:grid-cols-3">{[['Aarav Kapoor','Class IV-B · 02 Oct'],['Mira Rao','Class IX-A · 05 Oct'],['Sana Patel','Class II-C · 08 Oct']].map(([name,detail]) => <div key={name} className="flex items-center gap-3 rounded-lg bg-[#222328] p-3"><span className="grid size-9 place-items-center rounded-full bg-violet-500/10 text-xs font-semibold text-violet-300">{name.split(' ').map((word) => word[0]).join('')}</span><div><p className="text-xs text-slate-200">{name}</p><p className="mt-1 text-[10px] text-slate-500">{detail}</p></div><span className="ml-auto">🎂</span></div>)}</div></section>
-    {isStudent&&<section className={`${panel} p-5`}><h2 className="mb-4 text-sm font-semibold text-slate-100">Student operations</h2><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">{[['Categories','Student categories','/app/modules/students/categories'],['Houses','Student houses','/app/modules/students/houses'],['Attendance marked today','1,378 students','/app/modules/students/attendance'],['Disabled students','12 records','/app/modules/students/list']].map(([title,detail,to])=><button key={title} onClick={()=>navigate(to)} className="rounded-md border border-[#303238] bg-[#202126] p-3 text-left hover:border-slate-500"><p className="text-xs font-medium text-slate-200">{title}</p><p className="mt-1 text-[10px] text-slate-500">{detail}</p></button>)}</div></section>}
-  </div>;
-}
-
-function AttendanceManagement() {
-  const [date, setDate] = useState('2026-09-29');
-  const [className, setClassName] = useState('VIII-A');
-  const [rows, setRows] = useState<DemoRow[]>(() => studentRows.slice(0, 8).map((student, index) => ({ ...student, attendance: index === 4 ? 'Absent' : index === 2 ? 'Late' : 'Present', remarks: '—' })));
+  const config = moduleConfigs[key] ?? defaultConfig(key);
+  const isExam = key === 'academics/exams' || key === 'academics/marks';
+  const selectedExam = searchParams.get('exam') || 'fa1';
+  const [dialog, setDialog] = useState(false);
   const [notice, setNotice] = useState('');
-  const markAll = (attendance: string) => setRows((current) => current.map((row) => ({ ...row, attendance })));
-  const present = rows.filter((row) => row.attendance === 'Present').length;
-  return <div className="space-y-5"><PageHeading title="Student attendance" group="Student information" description="Review and record class attendance for the selected date." />
-    <div className="grid gap-3 sm:grid-cols-4">{[{label:'Present',value:present,tone:'text-emerald-300'},{label:'Absent',value:rows.filter((row)=>row.attendance==='Absent').length,tone:'text-rose-300'},{label:'Late',value:rows.filter((row)=>row.attendance==='Late').length,tone:'text-amber-300'},{label:'Attendance',value:`${Math.round(present/rows.length*100)}%`,tone:'text-sky-300'}].map((item)=><section key={item.label} className={`${panel} flex items-center justify-between p-4`}><span className="text-xs text-slate-500">{item.label}</span><strong className={`text-xl ${item.tone}`}>{item.value}</strong></section>)}</div>
-    <section className={`${panel} overflow-hidden`}><div className="flex flex-wrap items-end gap-2 border-b border-[#303238] p-4"><label className="text-[10px] text-slate-500">Class<select value={className} onChange={(event)=>setClassName(event.target.value)} className="mt-1 block h-9 rounded-md border border-[#393b41] bg-[#222328] px-3 text-xs text-slate-200">{['VIII-A','VIII-B','IX-A','VII-B','V-C'].map((option)=><option key={option}>{option}</option>)}</select></label><label className="text-[10px] text-slate-500">Date<input type="date" value={date} onChange={(event)=>setDate(event.target.value)} className="mt-1 block h-9 rounded-md border border-[#393b41] bg-[#222328] px-3 text-xs text-slate-200"/></label><button onClick={()=>markAll('Present')} className="h-9 rounded-md border border-emerald-900 px-3 text-xs text-emerald-300 hover:bg-emerald-500/10">Mark all present</button><button onClick={()=>markAll('Absent')} className="h-9 rounded-md border border-rose-900 px-3 text-xs text-rose-300 hover:bg-rose-500/10">Mark all absent</button><label className="ml-auto h-9 cursor-pointer rounded-md border border-[#3a3c42] px-3 py-2 text-xs text-slate-300 hover:bg-white/5">Import<input type="file" accept=".csv" className="sr-only" onChange={(event)=>setNotice(event.target.files?.[0]?`Selected ${event.target.files[0].name} for import`:'' )}/></label></div>
-      <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-xs"><thead className="bg-[#202126] text-[10px] uppercase tracking-wide text-slate-500"><tr>{['Student','Admission','Class','Roll number','Attendance status','Remarks'].map((head)=><th key={head} className="px-4 py-3">{head}</th>)}</tr></thead><tbody className="divide-y divide-[#292b30]">{rows.map((row,index)=><tr key={row.admission} className="hover:bg-white/[0.025]"><td className="px-4 py-3 font-medium text-slate-200">{row.name}</td><td className="px-4 py-3 text-slate-500">{row.admission}</td><td className="px-4 py-3 text-slate-400">{className}</td><td className="px-4 py-3 text-slate-400">{row.roll}</td><td className="px-4 py-3"><select value={row.attendance} onChange={(event)=>setRows((current)=>current.map((item,currentIndex)=>currentIndex===index?{...item,attendance:event.target.value}:item))} className="rounded border border-[#393b41] bg-[#222328] px-2 py-1.5 text-[11px] text-slate-200">{['Present','Absent','Late','Half day','Leave'].map((value)=><option key={value}>{value}</option>)}</select></td><td className="px-4 py-3"><input aria-label={`Remarks for ${row.name}`} defaultValue={row.remarks} onChange={(event)=>setRows((current)=>current.map((item,currentIndex)=>currentIndex===index?{...item,remarks:event.target.value}:item))} className="w-full rounded border border-transparent bg-transparent px-2 py-1.5 text-slate-300 outline-none focus:border-[#393b41] focus:bg-[#222328]"/></td></tr>)}</tbody></table></div>
-      <footer className="flex items-center justify-between border-t border-[#303238] px-4 py-3 text-[11px] text-slate-500"><span>{className} · {date} · {rows.length} students</span><button onClick={()=>setNotice(`Attendance saved for ${className} on ${date}`)} className="rounded-md bg-sky-600 px-4 py-2 text-xs font-medium text-white">Save attendance</button></footer></section>{notice&&<div role="status" className="fixed bottom-5 right-5 z-50 rounded-lg border border-emerald-900 bg-[#202923] px-4 py-3 text-xs text-emerald-300">{notice}<button onClick={()=>setNotice('')} className="ml-3">×</button></div>}</div>;
+  const columns = useMemo(() => config.columns, [config]);
+  const endpoint = config.endpoint.replace('{examType}', selectedExam);
+
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setNotice(`Save is waiting for backend support: POST ${endpoint}. No local record was created.`);
+    setDialog(false);
+  };
+
+  return <div className="space-y-5 pb-8 text-slate-900">
+    <PageHeading title={config.title} group={config.group} description={config.description} />
+    {isExam && <ExamSelector selected={selectedExam} onSelect={(exam) => setSearchParams({ exam })} />}
+    <section className={`${panel} p-4`}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[220px] flex-1">
+          <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
+          <input readOnly placeholder="Search will use backend query parameters" className="h-9 w-full rounded-lg border border-slate-300 bg-slate-50 pl-9 pr-3 text-xs outline-none" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {config.filters?.map((filter) => <select key={filter} disabled className="h-9 rounded-lg border border-slate-300 bg-slate-50 px-3 text-xs text-slate-500"><option>{filter}</option></select>)}
+          <button onClick={() => setNotice(`Export requires backend support: GET ${endpoint}/export`)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-slate-300 px-3 text-xs text-slate-700"><FileDown className="size-3.5" />Export</button>
+          {config.fields && <button onClick={() => setDialog(true)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[#7b1734] px-3 text-xs font-medium text-white"><Plus className="size-3.5" />Add</button>}
+        </div>
+      </div>
+      <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        Endpoint contract pending: <code className="font-mono">{endpoint}</code>
+      </p>
+    </section>
+    {notice && <p role="status" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">{notice}</p>}
+    <section className={`${panel} overflow-hidden`}>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-left text-xs">
+          <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
+            <tr>{columns.map((column) => <th key={column.key} className="px-4 py-3">{column.label}</th>)}<th className="px-4 py-3">Actions</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={columns.length + 1} className="px-4 py-14 text-center">
+                <Users className="mx-auto size-8 text-slate-300" />
+                <p className="mt-3 text-sm font-medium text-slate-700">{config.empty}</p>
+                <p className="mt-1 text-xs text-slate-500">Data will appear here when records are available from the backend.</p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {dialog && <RecordDialog title={config.title} fields={config.fields ?? []} onClose={() => setDialog(false)} onSubmit={submit} />}
+  </div>;
 }
 
-function StudentProfile() {
-  const [params] = useSearchParams(); const [tab,setTab]=useState('Overview');
-  const admission = params.get('id'); const student=studentRows.find((row)=>row.admission===admission)??studentRows[0];
-  const tabs=['Overview','Academic','Attendance','Fees','Parents','Documents','Health','Behavior','Activity'];
-  return <div className="space-y-5"><PageHeading title="Student profile" group="Student information" description="Profile details and related student records."/><section className={`${panel} flex flex-wrap items-center gap-4 p-5`}><span className="grid size-16 place-items-center rounded-full bg-[#2a3544] text-lg font-semibold text-sky-200">{student.name.split(' ').map((word)=>word[0]).join('')}</span><div className="min-w-48 flex-1"><h2 className="text-lg font-semibold text-white">{student.name}</h2><p className="mt-1 text-xs text-slate-500">{student.admission} · Class {student.class}-{student.section}</p></div><span className="rounded bg-emerald-500/10 px-2.5 py-1 text-[10px] text-emerald-300">Active</span><div className="grid grid-cols-2 gap-x-8 gap-y-2 text-[11px] sm:grid-cols-4"><div><p className="text-slate-600">Roll number</p><p className="mt-1 text-slate-300">{student.roll}</p></div><div><p className="text-slate-600">Guardian</p><p className="mt-1 text-slate-300">{student.father}</p></div><div><p className="text-slate-600">Phone</p><p className="mt-1 text-slate-300">{student.phone}</p></div><div><p className="text-slate-600">Fee balance</p><p className="mt-1 text-slate-300">₹12,000</p></div></div></section><section className={`${panel} overflow-hidden`}><div className="flex gap-1 overflow-x-auto border-b border-[#303238] px-3 pt-2">{tabs.map((item)=><button key={item} onClick={()=>setTab(item)} className={`whitespace-nowrap border-b-2 px-3 py-2 text-xs ${tab===item?'border-sky-500 text-sky-300':'border-transparent text-slate-500 hover:text-slate-200'}`}>{item}</button>)}</div><div className="grid gap-3 p-4 sm:grid-cols-3">{(tab==='Overview'?[['Attendance','94.6%'],['Total fees','₹42,000'],['Paid fees','₹30,000'],['Pending fees','₹12,000'],['Class rank','8 / 39'],['Academic performance','88%']]:[['Latest update',`${tab} records`],['Status','Up to date'],['Last updated','29 Sep 2026']]).map(([label,value])=><div key={label} className="rounded-lg bg-[#222328] p-4"><p className="text-[10px] text-slate-500">{label}</p><p className="mt-2 text-sm font-medium text-slate-200">{value}</p></div>)}</div></section></div>;
+function ExamSelector({ selected, onSelect }: { selected: string; onSelect: (value: string) => void }) {
+  return <div className={`${panel} overflow-x-auto p-2`}>
+    <div className="flex min-w-max gap-1" role="tablist" aria-label="Examination type">
+      {examTypes.map((exam) => <button key={exam.slug} onClick={() => onSelect(exam.slug)} role="tab" aria-selected={selected === exam.slug} className={`rounded-lg px-4 py-2 text-xs font-medium ${selected === exam.slug ? 'bg-[#7b1734] text-white' : 'text-slate-600 hover:bg-slate-50'}`}>{exam.label}</button>)}
+    </div>
+  </div>;
 }
 
-function PermissionsPage() {
-  const roles=['School admin','Accountant','Teacher','Receptionist','Staff']; const actions=['View','Create','Edit','Delete','Export','Approve'];
-  const [permissions,setPermissions]=useState<Record<string,boolean>>(
-    () => Object.fromEntries(
-      roles.flatMap((role) => actions.map((action) => [
-        `${role}:${action}`,
-        action === 'View' || (role === 'School admin' && action !== 'Approve'),
-      ])),
-    ),
-  );
-  return <div className="space-y-5"><PageHeading title="Roles & permissions" group="Settings" description="Review module access by role. Changes on this screen are a local UI preview."/><section className={`${panel} overflow-x-auto`}><table className="w-full min-w-[760px] text-left text-xs"><thead className="bg-[#202126] text-[10px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-3">Role</th>{actions.map((action)=><th key={action} className="px-4 py-3">{action}</th>)}</tr></thead><tbody className="divide-y divide-[#2c2e33]">{roles.map((role)=><tr key={role}><td className="px-4 py-3 font-medium text-slate-200">{role}</td>{actions.map((action)=><td key={action} className="px-4 py-3"><input type="checkbox" aria-label={`${action} permission for ${role}`} checked={permissions[`${role}:${action}`]??false} onChange={(event)=>setPermissions((current)=>({...current,[`${role}:${action}`]:event.target.checked}))}/></td>)}</tr>)}</tbody></table><p className="border-t border-[#303238] px-4 py-3 text-[10px] text-slate-600">Permission toggles are interactive previews; role policy persistence is not yet connected to the backend.</p></section></div>;
+function RecordDialog({ title, fields, onClose, onSubmit }: { title: string; fields: NonNullable<ModuleConfig['fields']>; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
+  return <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <form onSubmit={onSubmit} className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+      <div className="flex items-start justify-between gap-3">
+        <div><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-[#7b1734]">Backend required</p><h2 className="mt-1 text-lg font-semibold text-slate-900">Add {title}</h2></div>
+        <button type="button" onClick={onClose} aria-label="Close form" className="text-slate-500"><X className="size-5" /></button>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        {fields.map((field) => <label key={field.key} className="text-xs font-medium text-slate-600">{field.label}<input name={field.key} type={field.type ?? 'text'} required={field.required} className={input} /></label>)}
+      </div>
+      <p className="mt-4 flex gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600"><AlertCircle className="size-4 shrink-0" />Submitting this form will not create a local fake record. Connect the backend endpoint to persist changes.</p>
+      <div className="mt-5 flex justify-end gap-2 border-t border-slate-100 pt-4">
+        <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-xs">Cancel</button>
+        <button className="inline-flex items-center gap-2 rounded-lg bg-[#7b1734] px-4 py-2 text-xs font-medium text-white"><Check className="size-3.5" />Submit</button>
+      </div>
+    </form>
+  </div>;
 }
 
-function PhotoSearch() {
-  const [fileName, setFileName] = useState(''); const [searched, setSearched] = useState(false);
-  return <div className="space-y-5"><PageHeading title="Search by photo" group="Student information" description="Find possible student matches. An administrator must confirm each candidate." /><div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]"><section className={`${panel} p-5`}><h2 className="text-sm font-semibold text-slate-100">Upload a reference photo</h2><p className="mt-1 text-xs text-slate-500">Photos are used to present candidate matches for review.</p><label className="mt-5 flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#474a51] bg-[#202126] px-4 text-center hover:border-sky-600"><Search className="size-7 text-slate-500" /><span className="mt-3 text-xs font-medium text-slate-300">Choose a photo or drop it here</span><span className="mt-1 text-[10px] text-slate-600">JPG or PNG · local preview only</span><input type="file" accept="image/png,image/jpeg" onChange={(event) => setFileName(event.target.files?.[0]?.name ?? '')} className="sr-only" /></label>{fileName && <p className="mt-3 text-xs text-sky-300">Selected: {fileName}</p>}<button disabled={!fileName} onClick={() => setSearched(true)} className="mt-4 h-9 w-full rounded-md bg-sky-600 text-xs font-medium text-white disabled:opacity-40">Search candidates</button><p className="mt-3 text-[10px] leading-5 text-slate-600">Candidate suggestions are not identity confirmation. Verify the student manually before taking action.</p></section><section className={`${panel} p-5`}><h2 className="text-sm font-semibold text-slate-100">Candidate matches</h2><p className="mt-1 text-xs text-slate-500">{searched ? '3 possible matches · manual review required' : 'Upload a photo to see possible candidates.'}</p><div className="mt-4 space-y-2">{(searched ? studentRows.slice(0,3) : studentRows.slice(0,2)).map((student,index) => <div key={student.admission} className="flex items-center gap-3 rounded-lg border border-[#2e3035] bg-[#202126] p-3"><span className="grid size-10 place-items-center rounded-full bg-[#30323a] text-xs font-semibold text-slate-300">{student.name.split(' ').map((word)=>word[0]).join('')}</span><div className="min-w-0 flex-1"><p className="text-xs font-medium text-slate-200">{searched ? student.name : 'Example candidate'}</p><p className="mt-1 text-[10px] text-slate-500">{student.admission} · Class {student.class}-{student.section}</p></div>{searched && <span className="rounded bg-sky-500/10 px-2 py-1 text-[10px] text-sky-300">{92-index*7}% match</span>}<button onClick={() => window.alert(`Review profile for ${student.name}`)} className="rounded border border-[#3a3c42] px-2.5 py-1.5 text-[10px] text-slate-300 hover:bg-white/5">Review</button></div>)}</div></section></div></div>;
+function PageHeading({ title, group, description }: { title: string; group: string; description: string }) {
+  return <header><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#7b1734]">{group}</p><h1 className="mt-1 text-2xl font-semibold text-slate-950">{title}</h1><p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">{description}</p></header>;
 }
 
-function StudentAdmission() {
-  const [step, setStep] = useState(0); const [saved, setSaved] = useState(false); const [files, setFiles] = useState<string[]>([]);
-  const steps = ['Academic', 'Personal info', 'Parents', 'Health & bank', 'Documents'];
-  const fields = [
-    [['Admission number','ADM-'],['Roll number',''],['Admission date',''],['Class',''],['Section',''],['Previous school',''],['Opening due balance','']],
-    [['First name',''],['Middle name',''],['Last name',''],['Date of birth',''],['Gender',''],['Blood group',''],['Category',''],['Nationality','Indian'],['Aadhaar / ID',''],['Address',''],['City',''],['State',''],['Pincode','']],
-    [['Father name',''],['Mother name',''],['Guardian name',''],['Father phone',''],['Mother phone',''],['Email',''],['Occupation',''],['Address',''],['Emergency contact','']],
-    [['Blood group',''],['Allergies',''],['Medical conditions',''],['Emergency contact',''],['Bank name',''],['Account number',''],['IFSC','']],
-  ];
-  const next = (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (step < steps.length-1) setStep(step+1); else { setSaved(true); } };
-  return <div className="space-y-5"><PageHeading title="Student admission" group="Student information" description="Capture a new student record in five clear steps." /><section className={`${panel} p-4 sm:p-6`}><div className="mb-7 grid grid-cols-5 gap-2">{steps.map((label,index)=><button key={label} onClick={()=>index<=step&&setStep(index)} className="text-left"><span className={`mb-2 grid size-7 place-items-center rounded-full text-[10px] ${index===step?'bg-sky-600 text-white':index<step?'bg-emerald-500/20 text-emerald-300':'bg-[#2a2c31] text-slate-500'}`}>{index<step?'✓':index+1}</span><span className={`text-[9px] sm:text-[11px] ${index===step?'text-slate-100':'text-slate-500'}`}>{label}</span><span className={`mt-2 block h-0.5 ${index<=step?'bg-sky-600':'bg-[#33353a]'}`} /></button>)}</div>{saved?<div className="py-12 text-center"><span className="mx-auto grid size-12 place-items-center rounded-full bg-emerald-500/10 text-emerald-400"><Check className="size-6" /></span><h2 className="mt-4 text-lg font-semibold text-white">Admission draft saved</h2><p className="mt-2 text-sm text-slate-500">The form flow is complete. Connect submission to the admissions API to persist this record.</p><button onClick={()=>{setSaved(false);setStep(0)}} className="mt-5 rounded-md border border-[#3a3c42] px-4 py-2 text-xs text-slate-300">Start another admission</button></div>:<form onSubmit={next}><h2 className="mb-4 text-sm font-semibold text-slate-100">{steps[step]}</h2>{step<4?<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{fields[step].map(([label,placeholder])=><label key={label} className="text-[11px] text-slate-400">{label}{label==='Gender'||label==='Class'||label==='Section'||label==='Blood group'?<select required={label==='Class'} defaultValue="" className="mt-1.5 h-9 w-full rounded-md border border-[#383a40] bg-[#202126] px-2.5 text-xs text-slate-200"><option value="" disabled>Select {label.toLowerCase()}</option>{(label==='Gender'?['Female','Male','Other']:label==='Class'?['Nursery','LKG','UKG','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII']:label==='Section'?['A','B','C']:['A+','A−','B+','B−','O+','O−','AB+','AB−']).map((option)=><option key={option}>{option}</option>)}</select>:<input required={['First name','Last name','Admission number'].includes(label)} type={label.toLowerCase().includes('date')||label==='Date of birth'?'date':'text'} placeholder={placeholder||`Enter ${label.toLowerCase()}`} className="mt-1.5 h-9 w-full rounded-md border border-[#383a40] bg-[#202126] px-2.5 text-xs text-slate-200 outline-none placeholder:text-slate-600 focus:border-sky-700" />}</label>)}</div>:<div><label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-[#484a50] text-center"><FileDown className="size-6 text-slate-500" /><span className="mt-2 text-xs text-slate-300">Upload admission documents</span><span className="mt-1 text-[10px] text-slate-600">Birth certificate, Aadhaar, transfer certificate, photo</span><input type="file" multiple onChange={(event)=>setFiles(Array.from(event.target.files??[]).map((file)=>file.name))} className="sr-only" /></label><ul className="mt-3 space-y-1">{files.map((file)=><li key={file} className="flex items-center justify-between rounded bg-[#222328] px-3 py-2 text-xs text-slate-300">{file}<button type="button" onClick={()=>setFiles(files.filter((item)=>item!==file))} className="text-rose-300">Remove</button></li>)}</ul></div>}<div className="mt-7 flex justify-between border-t border-[#2e3035] pt-4"><button type="button" disabled={step===0} onClick={()=>setStep(step-1)} className="rounded-md border border-[#3a3c42] px-4 py-2 text-xs text-slate-300 disabled:opacity-40">Back</button><button className="rounded-md bg-sky-600 px-4 py-2 text-xs font-medium text-white">{step===steps.length-1?'Save admission':'Continue'}</button></div></form>}</section></div>;
+function humanize(value: string) { return value.replace(/[-_]/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase()); }
+function titleFor(key: string) {
+  for (const group of adminNav) {
+    const found = flattenGroup(group.items).find((item) => item.to?.endsWith(`/modules/${key}`));
+    if (found) return { title: found.label, group: group.label };
+  }
+  return { title: humanize(key), group: humanize(key.split('/')[0] || 'Workspace') };
 }
-
-function RecordModal({ mode, row, columns, onClose, onSubmit }: { mode: 'create'|'edit'|'view'; row?: DemoRow; columns: string[]; onClose:()=>void; onSubmit:(event:FormEvent<HTMLFormElement>)=>void }) {
-  return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 p-3" onMouseDown={(event)=>event.target===event.currentTarget&&onClose()}><section role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-[#3b3d43] bg-[#1c1d21] shadow-2xl"><header className="flex items-center justify-between border-b border-[#303238] px-5 py-4"><div><p className="text-[10px] uppercase tracking-wider text-sky-400">Record</p><h2 className="mt-1 text-sm font-semibold text-white">{mode==='create'?'Create record':mode==='edit'?'Edit record':'Record details'}</h2></div><button onClick={onClose} aria-label="Close" className="text-slate-500 hover:text-white"><X className="size-4" /></button></header>{mode==='view'?<div className="grid gap-3 p-5 sm:grid-cols-2">{columns.map((column)=> <div key={column} className="rounded-md bg-[#24252a] p-3"><p className="text-[10px] capitalize text-slate-500">{humanize(column)}</p><p className="mt-1 text-xs text-slate-200">{row?.[column]||'—'}</p></div>)}<button onClick={onClose} className="mt-2 justify-self-end rounded-md border border-[#3a3c42] px-4 py-2 text-xs text-slate-300">Close</button></div>:<form onSubmit={onSubmit} className="p-5"><div className="grid gap-3 sm:grid-cols-2">{columns.map((column)=><label key={column} className="text-[10px] capitalize text-slate-400">{humanize(column)}<input name={column} defaultValue={row?.[column]??''} placeholder={`Enter ${humanize(column).toLowerCase()}`} className="mt-1.5 h-9 w-full rounded-md border border-[#3a3c42] bg-[#222328] px-2.5 text-xs text-slate-200 outline-none focus:border-sky-700" /></label>)}</div><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-md border border-[#3a3c42] px-4 py-2 text-xs text-slate-300">Cancel</button><button className="rounded-md bg-sky-600 px-4 py-2 text-xs font-medium text-white">Save record</button></div></form>}</section></div>;
+function flattenGroup(items: NavLinkItem[]): NavLinkItem[] {
+  return items.flatMap((item) => [item, ...(item.children ? flattenGroup(item.children) : [])]);
 }
-
-function PageHeading({ title, group, description }: { title:string; group:string; description:string }) { return <header><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-400">{group}</p><h1 className="mt-1 text-2xl font-semibold text-white">{title}</h1><p className="mt-1 text-xs text-slate-500">{description}</p></header>; }
-function StatusPill({ value }: { value?: string }) { const tone = value?.match(/paid|active|present|complete|approved|published|ready|current|enabled/i) ? 'border-emerald-900/70 bg-emerald-400/10 text-emerald-300' : value?.match(/overdue|absent|disabled|rejected/i) ? 'border-rose-900/70 bg-rose-400/10 text-rose-300' : 'border-amber-900/70 bg-amber-400/10 text-amber-300'; return <span className={`inline-flex rounded px-2 py-1 text-[10px] ${tone}`}>{value||'—'}</span>; }
-function actionLabel(key:string){if(key.startsWith('students/'))return key.endsWith('parents')?'Add parent':key.endsWith('behavior')?'Add record':key.endsWith('houses')?'Add house':key.endsWith('categories')?'Add category':'Add student';if(key.startsWith('finance/'))return key.endsWith('fees')?'Collect fee':'Add fee item';if(key.startsWith('accounts/'))return key.endsWith('expense')?'Record expense':key.endsWith('income')?'Record income':'Add account';if(key.startsWith('hr/'))return 'Add staff';if(key.startsWith('academics/'))return 'Add item';return 'Create item';}

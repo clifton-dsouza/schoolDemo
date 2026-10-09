@@ -39,7 +39,7 @@ const pupils=[['Rahul','Kumar','10','10a'],['Priya','Shah','10','10a'],['Ishaan'
 pupils.forEach(([first,last,grade,section],i)=>sql.push(`INSERT INTO students (id,school_id,branch_id,user_id,admission_no,first_name,last_name,class_id,section_id) VALUES ('demo-student-${i+1}','${school}','${branch}',${i===0?"'demo-student-user'":'NULL'},'DEMO-STU-${String(i+1).padStart(3,'0')}',${q(first)},${q(last)},'demo-class-${grade}','demo-section-${section}') ON CONFLICT(id) DO UPDATE SET user_id=excluded.user_id,admission_no=excluded.admission_no,first_name=excluded.first_name,last_name=excluded.last_name,class_id=excluded.class_id,section_id=excluded.section_id;`));
 sql.push(`INSERT INTO students (id,school_id,branch_id,admission_no,first_name,last_name) VALUES ('demo-second-school-student','${secondSchool}','${secondBranch}','SECOND-001','Nora','Sen') ON CONFLICT(id) DO UPDATE SET admission_no=excluded.admission_no,first_name=excluded.first_name,last_name=excluded.last_name;`);
 try{
-  execFileSync(process.execPath,[wrangler,'d1','execute','schoolos-db','--local','--json','--command',sql.join('\n')],{cwd:root,stdio:'inherit'});
+  execFileSync(process.execPath,[wrangler,'d1','execute','schoolos-db','--remote','--json','--command',sql.join('\n')],{cwd:root,stdio:'inherit'});
   console.log('Local demo users are ready. Passwords are stored as PBKDF2 hashes in D1.');
   console.log('Created demo roles: platform owner, school admin, teacher, student. Parent accounts remain supported; no parent demo is seeded.');
 }catch(error){console.error(`Demo seed failed: ${error.message}`);process.exitCode=1;}
